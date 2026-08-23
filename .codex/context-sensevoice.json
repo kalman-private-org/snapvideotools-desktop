@@ -1,9 +1,0 @@
-{
-  "date": "2026-08-17",
-  "executor": "Codex",
-  "runtime": "Java 21 + JavaFX 21 + Spring Boot 3.2 + DuckDB",
-  "asr": "sherpa-onnx 1.13.5 + SenseVoice-Small int8 2024-07-17 + Silero VAD",
-  "modelDirectory": "~/.snapvideotools/models/sensevoice-small/2024-07-17",
-  "outputs": ["同名 .txt", "同名 .srt"],
-  "supportedPlatforms": ["macOS x64", "macOS ARM64", "Windows x64", "Linux x64"]
-}
