@@ -174,19 +174,11 @@ mkdir "%INSTALLER_DIR%" 2>nul
 
 cd /d "%PROJECT_DIR%"
 
-REM 创建应用 JAR（从编译后的类文件）
+REM target/classes 已包含 Maven 过滤后的完整资源，禁止再用源码资源覆盖版本号。
 echo %INFO% 创建应用 JAR...
 cd /d "%TARGET_DIR%\classes"
 jar cf "%LIBS_DIR%\app.jar" .
 cd /d "%PROJECT_DIR%"
-
-REM 添加资源文件到 app.jar
-if exist "%PROJECT_DIR%\src\main\resources" (
-    echo %INFO% 添加资源文件到 JAR...
-    cd /d "%PROJECT_DIR%\src\main\resources"
-    jar uf "%LIBS_DIR%\app.jar" .
-    cd /d "%PROJECT_DIR%"
-)
 
 REM 使用 Maven 复制依赖
 echo %INFO% 复制依赖库...

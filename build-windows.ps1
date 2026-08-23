@@ -244,21 +244,12 @@ function Initialize-Dependencies {
 
     Set-Location $ProjectDir
 
-    # 创建应用 JAR（从编译后的类文件）
+    # target/classes 已包含 Maven 过滤后的完整资源，禁止再用源码资源覆盖版本号。
     $classesDir = Join-Path $TargetDir "classes"
     if (Test-Path $classesDir) {
         Write-Info "创建应用 JAR..."
         Set-Location $classesDir
         & jar cf "$LibsDir\app.jar" .
-        Set-Location $ProjectDir
-    }
-
-    # 添加资源文件到 app.jar
-    $resourcesDir = Join-Path $ProjectDir "src\main\resources"
-    if (Test-Path $resourcesDir) {
-        Write-Info "添加资源文件到 JAR..."
-        Set-Location $resourcesDir
-        & jar uf "$LibsDir\app.jar" .
         Set-Location $ProjectDir
     }
 

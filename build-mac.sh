@@ -212,7 +212,7 @@ prepare_dependencies() {
     # 复制编译后的类文件 jar
     CLASSES_JAR="${TARGET_DIR}/classes"
     if [ -d "${CLASSES_JAR}" ]; then
-        # 创建应用 jar（不含依赖）
+        # target/classes 已包含 Maven 过滤后的完整资源，禁止再用源码资源覆盖版本号。
         log_info "创建应用 JAR..."
         cd "${CLASSES_JAR}"
         jar cf "${LIBS_DIR}/app.jar" .
@@ -226,14 +226,6 @@ prepare_dependencies() {
         -DoutputDirectory="${LIBS_DIR}" \
         -DincludeScope=runtime \
         -P${MAC_PROFILE}
-
-    # 复制资源文件到 app.jar
-    if [ -d "${PROJECT_DIR}/src/main/resources" ]; then
-        log_info "添加资源文件到 JAR..."
-        cd "${PROJECT_DIR}/src/main/resources"
-        jar uf "${LIBS_DIR}/app.jar" .
-        cd "${PROJECT_DIR}"
-    fi
 
     # 统计依赖数量
     JAR_COUNT=$(ls -1 "${LIBS_DIR}"/*.jar 2>/dev/null | wc -l)

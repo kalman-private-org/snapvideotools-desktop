@@ -236,6 +236,7 @@ jobs:
       - name: Verify packaged application contents
         shell: bash
         env:
+          EXPECTED_APP_VERSION: ${{ steps.version.outputs.value }}
           EXPECTED_NATIVE_LIBRARY: ${{ matrix.native_library }}
         run: |
           test -f target/package/libs/app.jar
@@ -244,6 +245,17 @@ jobs:
           jar tf target/package/libs/app.jar | grep -q 'i18n/messages_en.properties'
           jar tf target/package/libs/app.jar | grep -q 'i18n/messages_vi.properties'
           find target/package/libs -maxdepth 1 -type f -name "${EXPECTED_NATIVE_LIBRARY}-*.jar" -print -quit | grep -q .
+          version_check_dir="${RUNNER_TEMP}/snapvideotools-version-check"
+          mkdir -p "${version_check_dir}"
+          (
+            cd "${version_check_dir}"
+            jar xf "${GITHUB_WORKSPACE}/target/package/libs/app.jar" application.properties
+          )
+          packaged_version=$(sed -n 's/^app.version=//p' "${version_check_dir}/application.properties")
+          if [[ "${packaged_version}" != "${EXPECTED_APP_VERSION}" ]]; then
+            echo "Packaged application version does not match the release version" >&2
+            exit 1
+          fi
 
       - name: Normalize package filename
         shell: bash
