@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.CheckBox?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.TextArea?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.Region?>
+<?import javafx.scene.layout.StackPane?>
+<?import javafx.scene.layout.VBox?>
+<?import org.kordamp.ikonli.javafx.FontIcon?>
+
+<VBox xmlns="http://javafx.com/javafx/21"
+      xmlns:fx="http://javafx.com/fxml/1"
+      fx:controller="com.kalman03.svt.desktop.controller.DownloadAreaController"
+      spacing="20" alignment="TOP_CENTER" styleClass="card-pane">
+
+    <!-- Tabs -->
+    <HBox fx:id="tabGroup" spacing="8" alignment="CENTER" styleClass="tab-button-group">
+        <Button fx:id="videoLinkBtn" text="Video Links" styleClass="tab-button, selected"/>
+        <StackPane alignment="TOP_RIGHT">
+            <Button fx:id="userProfileBtn" text="User Profile" styleClass="tab-button"/>
+            <Label fx:id="userProfileProBadge" text="PRO" mouseTransparent="true"
+                   translateX="5" translateY="-6" styleClass="profile-pro-badge"/>
+        </StackPane>
+    </HBox>
+
+    <!-- Input Area -->
+    <TextArea fx:id="linkInput" promptText="Paste one or more video share links here, one link per line..."
+              prefRowCount="6" prefHeight="160" minHeight="160" wrapText="true" styleClass="text-field-area"
+              VBox.vgrow="ALWAYS"/>
+
+    <!-- Error Message -->
+    <Label fx:id="errorLabel" styleClass="error-label" managed="false" visible="false"/>
+
+    <!-- Bottom Controls -->
+    <HBox spacing="24" alignment="CENTER_LEFT">
+        <CheckBox fx:id="videoCheck" text="Extract Video" selected="true" disable="true"
+                  styleClass="required-option"/>
+        <CheckBox fx:id="coverCheck" text="Extract Cover"/>
+        <CheckBox fx:id="audioCheck" text="Extract Audio (.mp3)"/>
+        <CheckBox fx:id="textCheck" text="Extract Text (.txt)"/>
+
+        <Region HBox.hgrow="ALWAYS"/>
+
+        <Button fx:id="downloadBtn" text="Download" styleClass="button-primary"
+                prefHeight="44" onAction="#handleDownload">
+            <graphic>
+                <FontIcon iconLiteral="mdal-cloud_download" iconSize="18" iconColor="WHITE"/>
+            </graphic>
+        </Button>
+    </HBox>
+</VBox>

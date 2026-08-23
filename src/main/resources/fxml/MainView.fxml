@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.ScrollPane?>
+<?import javafx.scene.layout.BorderPane?>
+<?import javafx.scene.layout.StackPane?>
+<?import javafx.scene.layout.VBox?>
+
+<BorderPane xmlns="http://javafx.com/javafx/21"
+            xmlns:fx="http://javafx.com/fxml/1"
+            fx:controller="com.kalman03.svt.desktop.controller.MainController">
+
+    <!-- Header -->
+    <top>
+        <fx:include fx:id="header" source="HeaderView.fxml"/>
+    </top>
+
+    <!-- Center Content - Scrollable (hidden scrollbar) -->
+    <center>
+        <StackPane>
+            <ScrollPane fx:id="mainScrollPane" fitToWidth="true"
+                        hbarPolicy="NEVER" vbarPolicy="NEVER"
+                        styleClass="hidden-scrollbar">
+                <VBox spacing="28">
+                    <padding>
+                        <Insets top="32" right="80" bottom="32" left="80"/>
+                    </padding>
+                    <fx:include fx:id="downloadArea" source="DownloadAreaView.fxml"/>
+                    <fx:include fx:id="taskList" source="TaskListView.fxml" VBox.vgrow="ALWAYS"/>
+                </VBox>
+            </ScrollPane>
+
+            <!-- 任务列表触顶后的吸顶容器 -->
+            <VBox fx:id="stickyTaskHeaderHost" visible="false" managed="false"
+                  maxWidth="Infinity" StackPane.alignment="TOP_CENTER">
+                <StackPane.margin>
+                    <Insets right="80" left="80"/>
+                </StackPane.margin>
+            </VBox>
+        </StackPane>
+    </center>
+
+    <!-- Footer -->
+    <bottom>
+        <fx:include fx:id="footer" source="FooterView.fxml"/>
+    </bottom>
+</BorderPane>

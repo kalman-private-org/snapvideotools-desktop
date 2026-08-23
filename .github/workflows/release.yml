@@ -1,0 +1,317 @@
+name: Package and Release
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Package version in X.Y.Z format"
+        required: true
+        default: "1.0.0"
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: package-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  package:
+    name: Package ${{ matrix.artifact_suffix }}
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: macos-15
+            artifact_suffix: macos-arm64
+            native_library: sherpa-onnx-native-lib-osx-aarch64
+            package_type: dmg
+          - runner: macos-15-intel
+            artifact_suffix: macos-x64
+            native_library: sherpa-onnx-native-lib-osx-x64
+            package_type: dmg
+          - runner: windows-2022
+            artifact_suffix: windows-x64
+            native_library: sherpa-onnx-native-lib-win-x64
+            package_type: exe
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: maven
+          cache-dependency-path: pom.xml
+
+      - name: Resolve and validate version
+        id: version
+        shell: bash
+        env:
+          MANUAL_VERSION: ${{ inputs.version }}
+        run: |
+          if [[ "${GITHUB_EVENT_NAME}" == "workflow_dispatch" ]]; then
+            package_version="${MANUAL_VERSION}"
+          else
+            package_version="${GITHUB_REF_NAME#v}"
+          fi
+          if [[ ! "${package_version}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Version must match X.Y.Z, received: ${package_version}" >&2
+            exit 1
+          fi
+          echo "value=${package_version}" >> "${GITHUB_OUTPUT}"
+
+      - name: Run tests
+        run: mvn --batch-mode --no-transfer-progress test
+
+      - name: Install WiX Toolset 3
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          choco install wixtoolset --version=3.14.1.20250415 --yes --no-progress
+          $wixBin = Get-ChildItem "${env:ProgramFiles(x86)}" -Directory -Filter "WiX Toolset v3*" |
+            Sort-Object Name -Descending |
+            Select-Object -First 1 |
+            ForEach-Object { Join-Path $_.FullName "bin" }
+          if (-not $wixBin -or -not (Test-Path $wixBin)) {
+            throw "WiX Toolset 3 bin directory was not found"
+          }
+          $wixBin | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+
+      - name: Import macOS signing certificate
+        if: runner.os == 'macOS'
+        shell: bash
+        env:
+          APPLE_CERTIFICATE_BASE64: ${{ secrets.APPLE_CERTIFICATE_BASE64 }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+        run: |
+          for sensitive_name in APPLE_CERTIFICATE_BASE64 APPLE_CERTIFICATE_PASSWORD; do
+            if [[ -n "${!sensitive_name:-}" ]]; then
+              printf '::add-mask::%s\n' "${!sensitive_name}"
+            fi
+          done
+          for required_name in APPLE_CERTIFICATE_BASE64 APPLE_CERTIFICATE_PASSWORD; do
+            if [[ -z "${!required_name:-}" ]]; then
+              echo "Required GitHub Actions secret is missing: ${required_name}" >&2
+              exit 1
+            fi
+          done
+
+          certificate_path="${RUNNER_TEMP}/developer-id-application.p12"
+          keychain_path="${RUNNER_TEMP}/snapvideotools-signing.keychain-db"
+          keychain_password=$(openssl rand -hex 24)
+          echo "::add-mask::${keychain_password}"
+          printf '%s' "${APPLE_CERTIFICATE_BASE64}" | base64 --decode > "${certificate_path}"
+
+          security create-keychain -p "${keychain_password}" "${keychain_path}"
+          security set-keychain-settings -lut 21600 "${keychain_path}"
+          security unlock-keychain -p "${keychain_password}" "${keychain_path}"
+          security import "${certificate_path}" \
+            -P "${APPLE_CERTIFICATE_PASSWORD}" \
+            -A -t cert -f pkcs12 \
+            -k "${keychain_path}"
+          security set-key-partition-list \
+            -S apple-tool:,apple:,codesign: \
+            -s -k "${keychain_password}" \
+            "${keychain_path}"
+          security list-keychains -d user -s "${keychain_path}"
+
+          signing_identity=$(security find-identity -v -p codesigning "${keychain_path}" |
+            sed -nE 's/^.*"(Developer ID Application:.*)"[[:space:]]*$/\1/p' |
+            head -n 1)
+          if [[ -z "${signing_identity}" ]]; then
+            echo "No valid Developer ID Application identity was found in the imported .p12" >&2
+            echo "Ensure the .p12 contains both the Developer ID Application certificate and its private key" >&2
+            exit 1
+          fi
+          printf '::add-mask::%s\n' "${signing_identity}"
+
+          {
+            echo "MAC_SIGNING_IDENTITY=${signing_identity}"
+            echo "MAC_SIGNING_KEYCHAIN=${keychain_path}"
+          } >> "${GITHUB_ENV}"
+
+      - name: Package macOS application
+        if: runner.os == 'macOS'
+        shell: bash
+        run: ./build-mac.sh --version "${{ steps.version.outputs.value }}"
+
+      - name: Package Windows application
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: ./build-windows.ps1 -Version "${{ steps.version.outputs.value }}"
+
+      - name: Sign, notarize and staple macOS DMG
+        if: runner.os == 'macOS'
+        shell: bash
+        env:
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          for sensitive_name in APPLE_ID APPLE_APP_SPECIFIC_PASSWORD APPLE_TEAM_ID; do
+            if [[ -n "${!sensitive_name:-}" ]]; then
+              printf '::add-mask::%s\n' "${!sensitive_name}"
+            fi
+          done
+          for required_name in APPLE_ID APPLE_APP_SPECIFIC_PASSWORD APPLE_TEAM_ID; do
+            if [[ -z "${!required_name:-}" ]]; then
+              echo "Required GitHub Actions secret is missing: ${required_name}" >&2
+              exit 1
+            fi
+          done
+
+          package_file=$(find target/installer -maxdepth 1 -type f -name '*.dmg' -print -quit)
+          if [[ -z "${package_file}" ]]; then
+            echo "No DMG package found for signing and notarization" >&2
+            exit 1
+          fi
+
+          codesign --force --timestamp \
+            --keychain "${MAC_SIGNING_KEYCHAIN}" \
+            --sign "${MAC_SIGNING_IDENTITY}" \
+            "${package_file}"
+          codesign --verify --strict --verbose=2 "${package_file}"
+
+          mount_dir=$(mktemp -d)
+          hdiutil attach "${package_file}" -nobrowse -readonly -mountpoint "${mount_dir}"
+          app_path=$(find "${mount_dir}" -maxdepth 2 -type d -name '*.app' -print -quit)
+          if [[ -z "${app_path}" ]]; then
+            hdiutil detach "${mount_dir}"
+            echo "No application bundle was found inside the DMG" >&2
+            exit 1
+          fi
+          if ! codesign --verify --deep --strict --verbose=4 "${app_path}"; then
+            hdiutil detach "${mount_dir}"
+            echo "The application bundle contains an invalid or incomplete nested signature" >&2
+            exit 1
+          fi
+          if ! codesign --display --verbose=4 "${app_path}" 2>&1 | grep -Eq 'flags=.*runtime'; then
+            hdiutil detach "${mount_dir}"
+            echo "The application bundle does not have the hardened runtime enabled" >&2
+            exit 1
+          fi
+          hdiutil detach "${mount_dir}"
+
+          submission_result="${RUNNER_TEMP}/notary-submission.json"
+          submission_error="${RUNNER_TEMP}/notary-submission.stderr"
+          set +e
+          xcrun notarytool submit "${package_file}" \
+            --apple-id "${APPLE_ID}" \
+            --password "${APPLE_APP_SPECIFIC_PASSWORD}" \
+            --team-id "${APPLE_TEAM_ID}" \
+            --wait \
+            --output-format json > "${submission_result}" 2> "${submission_error}"
+          submit_exit_code=$?
+          set -e
+
+          submission_status=$(plutil -extract status raw -o - "${submission_result}" 2>/dev/null || true)
+          if [[ "${submit_exit_code}" -ne 0 || "${submission_status}" != "Accepted" ]]; then
+            rm -f "${submission_result}" "${submission_error}"
+            echo "Apple notarization failed; sensitive provider details were withheld from the workflow log" >&2
+            exit 1
+          fi
+          rm -f "${submission_result}" "${submission_error}"
+
+          xcrun stapler staple "${package_file}"
+          xcrun stapler validate "${package_file}"
+
+      - name: Remove temporary macOS signing keychain
+        if: always() && runner.os == 'macOS'
+        shell: bash
+        run: |
+          if [[ -n "${MAC_SIGNING_KEYCHAIN:-}" && -f "${MAC_SIGNING_KEYCHAIN}" ]]; then
+            security delete-keychain "${MAC_SIGNING_KEYCHAIN}"
+          fi
+
+      - name: Verify packaged application contents
+        shell: bash
+        env:
+          EXPECTED_NATIVE_LIBRARY: ${{ matrix.native_library }}
+        run: |
+          test -f target/package/libs/app.jar
+          jar tf target/package/libs/app.jar | grep -q 'fxml/MainView.fxml'
+          jar tf target/package/libs/app.jar | grep -q 'i18n/messages_zh.properties'
+          jar tf target/package/libs/app.jar | grep -q 'i18n/messages_en.properties'
+          jar tf target/package/libs/app.jar | grep -q 'i18n/messages_vi.properties'
+          find target/package/libs -maxdepth 1 -type f -name "${EXPECTED_NATIVE_LIBRARY}-*.jar" -print -quit | grep -q .
+
+      - name: Normalize package filename
+        shell: bash
+        env:
+          PACKAGE_VERSION: ${{ steps.version.outputs.value }}
+          PACKAGE_SUFFIX: ${{ matrix.artifact_suffix }}
+          PACKAGE_TYPE: ${{ matrix.package_type }}
+        run: |
+          mkdir -p dist
+          package_file=$(find target/installer -maxdepth 1 -type f -name "*.${PACKAGE_TYPE}" -print -quit)
+          if [[ -z "${package_file}" ]]; then
+            echo "No ${PACKAGE_TYPE} package found" >&2
+            exit 1
+          fi
+          cp "${package_file}" "dist/SnapVideoTools-${PACKAGE_VERSION}-${PACKAGE_SUFFIX}.${PACKAGE_TYPE}"
+          test -s "dist/SnapVideoTools-${PACKAGE_VERSION}-${PACKAGE_SUFFIX}.${PACKAGE_TYPE}"
+
+      - name: Upload package artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: SnapVideoTools-${{ steps.version.outputs.value }}-${{ matrix.artifact_suffix }}
+          path: dist/*
+          if-no-files-found: error
+          retention-days: 14
+
+  release:
+    name: Publish repository release
+    if: startsWith(github.ref, 'refs/tags/')
+    needs: package
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: write
+
+    steps:
+      - name: Download all package artifacts
+        uses: actions/download-artifact@v6
+        with:
+          pattern: SnapVideoTools-*
+          path: release-assets
+          merge-multiple: true
+
+      - name: Generate SHA-256 checksums
+        shell: bash
+        run: |
+          cd release-assets
+          sha256sum SnapVideoTools-* > SHA256SUMS.txt
+          test "$(wc -l < SHA256SUMS.txt)" -eq 3
+
+      - name: Generate release notes
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          gh api --method POST "repos/${GITHUB_REPOSITORY}/releases/generate-notes" \
+            -f tag_name="${RELEASE_TAG}" --jq '.body' > RELEASE_NOTES.md
+          test -s RELEASE_NOTES.md
+
+      - name: Create or update release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          if gh release view "${RELEASE_TAG}" --repo "${GITHUB_REPOSITORY}" >/dev/null 2>&1; then
+            gh release upload "${RELEASE_TAG}" release-assets/* --clobber --repo "${GITHUB_REPOSITORY}"
+          else
+            gh release create "${RELEASE_TAG}" release-assets/* \
+              --notes-file RELEASE_NOTES.md \
+              --repo "${GITHUB_REPOSITORY}" \
+              --title "SnapVideoTools ${RELEASE_TAG}"
+          fi

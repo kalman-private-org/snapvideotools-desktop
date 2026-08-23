@@ -1,0 +1,166 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.image.Image?>
+<?import javafx.scene.image.ImageView?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.VBox?>
+
+<VBox xmlns="http://javafx.com/javafx/21"
+      xmlns:fx="http://javafx.com/fxml/1"
+      fx:controller="com.kalman03.svt.desktop.controller.FooterController"
+      spacing="8" alignment="CENTER"
+      style="-fx-background-color: #FFFFFF; -fx-border-color: #CAC4D0; -fx-border-width: 1 0 0 0;">
+    <padding>
+        <Insets top="16" right="40" bottom="14" left="40"/>
+    </padding>
+
+    <HBox spacing="20" alignment="CENTER">
+        <Label fx:id="platformsLabel" text="Supported Platforms:" style="-fx-text-fill: #49454F; -fx-font-size: 14px;"/>
+
+        <!-- Platform icons -->
+        <Label fx:id="tiktokIcon" contentDisplay="GRAPHIC_ONLY" pickOnBounds="true">
+        <graphic>
+            <ImageView fitWidth="20" fitHeight="20" preserveRatio="true">
+                <image>
+                    <Image url="@/icons/platforms/tiktok.png"/>
+                </image>
+            </ImageView>
+        </graphic>
+    </Label>
+    <Label fx:id="douyinIcon" contentDisplay="GRAPHIC_ONLY" pickOnBounds="true">
+        <graphic>
+            <ImageView fitWidth="20" fitHeight="20" preserveRatio="true">
+                <image>
+                    <Image url="@/icons/platforms/douyin.png"/>
+                </image>
+            </ImageView>
+        </graphic>
+    </Label>
+    <Label fx:id="xiaohongshuIcon" contentDisplay="GRAPHIC_ONLY" pickOnBounds="true">
+        <graphic>
+            <ImageView fitWidth="20" fitHeight="20" preserveRatio="true">
+                <image>
+                    <Image url="@/icons/platforms/xiaohongshu.png"/>
+                </image>
+            </ImageView>
+        </graphic>
+    </Label>
+    <Label fx:id="kuaishouIcon" contentDisplay="GRAPHIC_ONLY" pickOnBounds="true">
+        <graphic>
+            <ImageView fitWidth="20" fitHeight="20" preserveRatio="true">
+                <image>
+                    <Image url="@/icons/platforms/kuaishou.png"/>
+                </image>
+            </ImageView>
+        </graphic>
+    </Label>
+    <Label fx:id="bilibiliIcon" contentDisplay="GRAPHIC_ONLY" pickOnBounds="true">
+        <graphic>
+            <ImageView fitWidth="20" fitHeight="20" preserveRatio="true">
+                <image>
+                    <Image url="@/icons/platforms/bilibili.png"/>
+                </image>
+            </ImageView>
+        </graphic>
+    </Label>
+    <Label fx:id="xiguaIcon" contentDisplay="GRAPHIC_ONLY" pickOnBounds="true">
+        <graphic>
+            <ImageView fitWidth="20" fitHeight="20" preserveRatio="true">
+                <image>
+                    <Image url="@/icons/platforms/ixigua.png"/>
+                </image>
+            </ImageView>
+        </graphic>
+    </Label>
+    <Label fx:id="toutiaoIcon" contentDisplay="GRAPHIC_ONLY" pickOnBounds="true">
+        <graphic>
+            <ImageView fitWidth="20" fitHeight="20" preserveRatio="true">
+                <image>
+                    <Image url="@/icons/platforms/toutiao.png"/>
+                </image>
+            </ImageView>
+        </graphic>
+    </Label>
+    <Label fx:id="weiboIcon" contentDisplay="GRAPHIC_ONLY" pickOnBounds="true">
+        <graphic>
+            <ImageView fitWidth="20" fitHeight="20" preserveRatio="true">
+                <image>
+                    <Image url="@/icons/platforms/weibo.png"/>
+                </image>
+            </ImageView>
+        </graphic>
+    </Label>
+    <Label fx:id="pipixiaIcon" contentDisplay="GRAPHIC_ONLY" pickOnBounds="true">
+        <graphic>
+            <ImageView fitWidth="20" fitHeight="20" preserveRatio="true">
+                <image>
+                    <Image url="@/icons/platforms/pipix.png"/>
+                </image>
+            </ImageView>
+        </graphic>
+    </Label>
+    <Label fx:id="zuiyouIcon" contentDisplay="GRAPHIC_ONLY" pickOnBounds="true">
+        <graphic>
+            <ImageView fitWidth="20" fitHeight="20" preserveRatio="true">
+                <image>
+                    <Image url="@/icons/platforms/izuiyou.png"/>
+                </image>
+            </ImageView>
+        </graphic>
+    </Label>
+    <Label fx:id="pearvideoIcon" contentDisplay="GRAPHIC_ONLY" pickOnBounds="true">
+        <graphic>
+            <ImageView fitWidth="20" fitHeight="20" preserveRatio="true">
+                <image>
+                    <Image url="@/icons/platforms/pearvideo.png"/>
+                </image>
+            </ImageView>
+        </graphic>
+    </Label>
+    <Label fx:id="xinpianchangIcon" contentDisplay="GRAPHIC_ONLY" pickOnBounds="true">
+        <graphic>
+            <ImageView fitWidth="20" fitHeight="20" preserveRatio="true">
+                <image>
+                    <Image url="@/icons/platforms/xinpianchang.png"/>
+                </image>
+            </ImageView>
+        </graphic>
+    </Label>
+    <Label fx:id="haokanIcon" contentDisplay="GRAPHIC_ONLY" pickOnBounds="true">
+        <graphic>
+            <ImageView fitWidth="20" fitHeight="20" preserveRatio="true">
+                <image>
+                    <Image url="@/icons/platforms/haokan.png"/>
+                </image>
+            </ImageView>
+        </graphic>
+    </Label>
+    <Label fx:id="huyaIcon" contentDisplay="GRAPHIC_ONLY" pickOnBounds="true">
+        <graphic>
+            <ImageView fitWidth="20" fitHeight="20" preserveRatio="true">
+                <image>
+                    <Image url="@/icons/platforms/huya.png"/>
+                </image>
+            </ImageView>
+        </graphic>
+    </Label>
+    <Label fx:id="acfunIcon" contentDisplay="GRAPHIC_ONLY" pickOnBounds="true">
+        <graphic>
+            <ImageView fitWidth="20" fitHeight="20" preserveRatio="true">
+                <image>
+                    <Image url="@/icons/platforms/acfun.png"/>
+                </image>
+            </ImageView>
+        </graphic>
+        </Label>
+        <Button fx:id="morePlatformsBtn" text="…" onAction="#handleShowAllPlatforms"
+                styleClass="footer-more-platforms-button"/>
+    </HBox>
+
+    <Label fx:id="disclaimerLabel" text="This software only provides technical utility services and does not store any content."
+           wrapText="true" textAlignment="CENTER" alignment="CENTER" maxWidth="Infinity"
+           styleClass="footer-disclaimer"/>
+</VBox>

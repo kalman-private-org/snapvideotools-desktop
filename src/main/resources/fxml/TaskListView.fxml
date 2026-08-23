@@ -1,0 +1,118 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.ToggleButton?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.Priority?>
+<?import javafx.scene.layout.Region?>
+<?import javafx.scene.layout.StackPane?>
+<?import javafx.scene.layout.VBox?>
+<?import org.kordamp.ikonli.javafx.FontIcon?>
+
+<VBox xmlns="http://javafx.com/javafx/21"
+      xmlns:fx="http://javafx.com/fxml/1"
+      fx:controller="com.kalman03.svt.desktop.controller.TaskListController"
+      spacing="14" minHeight="400">
+
+    <!-- Tab 与筛选器作为一个整体参与吸顶 -->
+    <StackPane fx:id="stickyHeaderSlot">
+        <VBox fx:id="stickyHeader" spacing="14" maxWidth="Infinity"
+              styleClass="task-list-sticky-header">
+            <!-- Tabs -->
+            <HBox spacing="32" style="-fx-border-color: #CAC4D0; -fx-border-width: 0 0 1 0;">
+                <padding>
+                    <Insets bottom="8"/>
+                </padding>
+                <Label fx:id="queueLabel" text="Queue (0)" styleClass="list-header-label"
+                       onMouseClicked="#handleQueueTabClick" style="-fx-cursor: hand;"/>
+                <Label fx:id="historyLabel" text="History" styleClass="list-header-label, list-header-label-inactive"
+                       onMouseClicked="#handleHistoryTabClick" style="-fx-cursor: hand;"/>
+
+                <Region HBox.hgrow="ALWAYS"/>
+
+                <Button fx:id="stopAllBtn" text="Stop All" styleClass="button-secondary"
+                        visible="true" managed="true" onAction="#handleStopAll"
+                        style="-fx-padding: 8 14;">
+                    <graphic>
+                        <FontIcon iconLiteral="mdmz-stop" iconSize="18" iconColor="#49454F"/>
+                    </graphic>
+                </Button>
+
+                <Button fx:id="resumeAllBtn" text="Enable All" styleClass="button-secondary"
+                        visible="true" managed="true" onAction="#handleResumeAll"
+                        style="-fx-padding: 8 14;">
+                    <graphic>
+                        <FontIcon iconLiteral="mdmz-play_arrow" iconSize="18" iconColor="#49454F"/>
+                    </graphic>
+                </Button>
+
+                <Button fx:id="clearQueueBtn" text="Clear Queue" styleClass="button-secondary"
+                        visible="true" managed="true" onAction="#handleClearQueue"
+                        style="-fx-padding: 8 14;">
+                    <graphic>
+                        <FontIcon iconLiteral="mdal-clear_all" iconSize="18" iconColor="#49454F"/>
+                    </graphic>
+                </Button>
+
+                <Button fx:id="clearHistoryBtn" text="Clear" styleClass="button-secondary"
+                        visible="false" managed="false" onAction="#handleClearHistory"
+                        style="-fx-padding: 8 14;">
+                    <graphic>
+                        <FontIcon iconLiteral="mdal-delete_sweep" iconSize="18" iconColor="#49454F"/>
+                    </graphic>
+                </Button>
+            </HBox>
+
+            <!-- 媒体类型筛选：颜色与任务卡片中的媒体类型标识保持一致 -->
+            <HBox spacing="12" alignment="CENTER_LEFT" styleClass="media-filter-row">
+                <Label fx:id="mediaFilterLabel" text="Media type" styleClass="media-filter-label"/>
+
+                <HBox spacing="4" alignment="CENTER_LEFT" styleClass="media-filter-group">
+                    <ToggleButton fx:id="allFilterBtn" text="All (0)" selected="true"
+                                  styleClass="media-filter-button, media-filter-all"
+                                  onAction="#handleAllMediaFilter">
+                        <graphic>
+                            <FontIcon iconLiteral="mdal-apps" iconSize="15"/>
+                        </graphic>
+                    </ToggleButton>
+                    <ToggleButton fx:id="videoFilterBtn" text="Video (0)"
+                                  styleClass="media-filter-button, media-filter-video"
+                                  onAction="#handleVideoMediaFilter">
+                        <graphic>
+                            <FontIcon iconLiteral="mdmz-videocam" iconSize="15"/>
+                        </graphic>
+                    </ToggleButton>
+                    <ToggleButton fx:id="audioFilterBtn" text="Audio (0)"
+                                  styleClass="media-filter-button, media-filter-audio"
+                                  onAction="#handleAudioMediaFilter">
+                        <graphic>
+                            <FontIcon iconLiteral="mdal-audiotrack" iconSize="15"/>
+                        </graphic>
+                    </ToggleButton>
+                    <ToggleButton fx:id="imageFilterBtn" text="Image (0)"
+                                  styleClass="media-filter-button, media-filter-image"
+                                  onAction="#handleImageMediaFilter">
+                        <graphic>
+                            <FontIcon iconLiteral="mdal-image" iconSize="15"/>
+                        </graphic>
+                    </ToggleButton>
+                </HBox>
+            </HBox>
+        </VBox>
+    </StackPane>
+
+    <!-- 列表容器 -->
+    <VBox fx:id="taskContainer" spacing="16" minHeight="350" VBox.vgrow="ALWAYS">
+        <padding>
+            <Insets top="16" bottom="16"/>
+        </padding>
+        <VBox fx:id="emptyState" alignment="CENTER" spacing="8" minHeight="220"
+              styleClass="task-empty-state">
+            <FontIcon iconLiteral="mdal-filter_list" iconSize="32" styleClass="task-empty-icon"/>
+            <Label fx:id="emptyStateTitle" text="No download tasks" styleClass="task-empty-title"/>
+            <Label fx:id="emptyStateHint" text="New tasks will appear here" styleClass="task-empty-hint"/>
+        </VBox>
+    </VBox>
+</VBox>
