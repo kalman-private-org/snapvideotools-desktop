@@ -1,6 +1,7 @@
 package com.kalman03.svt.desktop.service;
 
 import com.fasterxml.jackson.core.type.TypeReference;
+import com.kalman03.svt.desktop.enums.TabType;
 import com.kalman03.svt.desktop.model.VideoInfo;
 import com.kalman03.svt.desktop.util.HttpClientUtil;
 import com.kalman03.svt.desktop.util.HttpClientUtil.HttpResult;
@@ -82,6 +83,7 @@ public class VideoParsingService {
      * @return 视频信息，解析失败返回 null
      */
     public VideoInfo parseVideoUrl(String url) {
+        requireAuthenticatedSession();
         String normalizedUrl = normalizeVideoUrl(url);
         log.info("Parsing video URL: {}", normalizedUrl);
 
@@ -105,7 +107,10 @@ public class VideoParsingService {
                 }
             }
 
-            if (result.isBusinessUnauthorized()) {
+            if (result == null) {
+                throw new ApiParseException("Failed to get response from API");
+            }
+            if (result.isUnauthorized() || result.isBusinessUnauthorized()) {
                 log.warn("Unauthorized, need to login");
                 authService.handleUnauthorized();
                 throw new ApiParseException(result.getMessage());
@@ -147,7 +152,7 @@ public class VideoParsingService {
     /**
      * 抖音从用户主页打开视频时会复制出带 modal_id 的主页地址，解析接口需要标准视频地址。
      */
-    private String normalizeVideoUrl(String url) {
+    String normalizeVideoUrl(String url) {
         if (url == null || url.isBlank()) {
             return url;
         }
@@ -171,6 +176,44 @@ public class VideoParsingService {
     }
 
     /**
+     * 含 modal_id 的抖音主页地址代表一个明确作品，必须覆盖当前主页 Tab 并走单作品解析。
+     */
+    public TabType resolveTabType(TabType selectedTab, String content) {
+        if (selectedTab == TabType.USER_PROFILE && containsDouyinModalUrl(content)) {
+            return TabType.VIDEO_LINK;
+        }
+        return selectedTab == null ? TabType.VIDEO_LINK : selectedTab;
+    }
+
+    boolean containsDouyinModalUrl(String content) {
+        return extractUrls(content).stream().anyMatch(url -> {
+            try {
+                URI uri = URI.create(url);
+                String host = uri.getHost();
+                return host != null
+                        && (host.equalsIgnoreCase("douyin.com")
+                                || host.toLowerCase(Locale.ROOT).endsWith(".douyin.com"))
+                        && DOUYIN_MODAL_ID_PATTERN.matcher(url).find();
+            } catch (IllegalArgumentException exception) {
+                return false;
+            }
+        });
+    }
+
+    /** 确保解析请求一定携带登录令牌；令牌缺失时先尝试刷新，再触发重新登录。 */
+    private void requireAuthenticatedSession() {
+        String accessToken = authService.getAccessToken();
+        if (accessToken != null && !accessToken.isBlank()) {
+            return;
+        }
+        authService.handleUnauthorized();
+        accessToken = authService.getAccessToken();
+        if (accessToken == null || accessToken.isBlank()) {
+            throw new ApiParseException("Login required");
+        }
+    }
+
+    /**
      * 获取用户主页下的所有视频（分页）
      *
      * @param profileUrl 用户主页URL
@@ -179,6 +222,7 @@ public class VideoParsingService {
      * @return 视频信息列表
      */
     public List<VideoInfo> getUserVideos(String profileUrl, int page, int pageSize) {
+        requireAuthenticatedSession();
         log.info("Fetching user videos from: {}, page: {}, pageSize: {}", profileUrl, page, pageSize);
         // TODO: 实现用户主页视频列表获取
         return doGetUserVideos(profileUrl, page, pageSize);
@@ -366,6 +410,7 @@ public class VideoParsingService {
     }
 
     private DesktopUserWorksPageVO fetchUserVideosPage(String normalizedProfileUrl, long cursor, int pageSize) {
+        requireAuthenticatedSession();
         try {
             Map<String, String> params = new HashMap<>();
             params.put("url", normalizedProfileUrl);
@@ -383,6 +428,17 @@ public class VideoParsingService {
 
             if (result.isUnauthorized() || result.isBusinessUnauthorized()) {
                 log.warn("Unauthorized when fetching user videos, need to login");
+                if (authService.refreshAccessToken()) {
+                    result = HttpClientUtil.get(apiUrl);
+                } else {
+                    authService.handleUnauthorized();
+                    throw buildProfileException(result.getMessage());
+                }
+            }
+            if (result == null) {
+                throw buildProfileException("Failed to get response from API");
+            }
+            if (result.isUnauthorized() || result.isBusinessUnauthorized()) {
                 authService.handleUnauthorized();
                 throw buildProfileException(result.getMessage());
             }

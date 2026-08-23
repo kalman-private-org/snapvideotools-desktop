@@ -185,9 +185,12 @@ public class DownloadAreaController {
                     }
                     if (result != null && result.errorMessage() != null && !result.errorMessage().isBlank()) {
                         showError(result.errorMessage());
+                        return;
                     }
                     if (result != null && result.createdTasks() > 0) {
                         linkInput.clear();
+                    } else {
+                        showError(languageService.get("error.no.downloadable"));
                     }
                 })
         );

@@ -82,25 +82,7 @@ public class RemoteDownloadService implements DownloadService {
 
     @Override
     public void submitDownload(DownloadRequest request) {
-        log.info("Received download request: tabType={}, extractCover={}, extractAudio={}, extractText={}",
-                request.getTabType(), request.isExtractCover(), request.isExtractAudio(), request.isExtractText());
-
-        String batchId = UUID.randomUUID().toString().substring(0, 8);
-        // 新目录结构: 日期/标题/**
-        String dateFolder = LocalDateTime.now().format(DATE_FORMATTER);
-        long requestEpoch = queueEpoch.get();
-
-        parsingExecutor.submit(() -> {
-            try {
-                if (request.getTabType() == TabType.VIDEO_LINK) {
-                    processVideoLinks(request, batchId, dateFolder, requestEpoch);
-                } else {
-                    processUserProfile(request, batchId, dateFolder, requestEpoch);
-                }
-            } catch (Exception e) {
-                log.error("Failed to process download request", e);
-            }
-        });
+        submitDownloadAsync(request);
     }
 
     @Override
@@ -116,13 +98,18 @@ public class RemoteDownloadService implements DownloadService {
         parsingExecutor.submit(() -> {
             ParseOutcome outcome = new ParseOutcome(0, null);
             try {
-                if (request.getTabType() == TabType.VIDEO_LINK) {
+                TabType resolvedTab = videoParsingService.resolveTabType(request.getTabType(), request.getContent());
+                if (resolvedTab != request.getTabType()) {
+                    log.info("Detected an explicit work URL in profile mode; route request as a video link");
+                }
+                if (resolvedTab == TabType.VIDEO_LINK) {
                     outcome = processVideoLinks(request, batchId, dateFolder, requestEpoch);
                 } else {
                     outcome = processUserProfile(request, batchId, dateFolder, requestEpoch);
                 }
             } catch (Exception e) {
                 log.error("Failed to process download request", e);
+                outcome = new ParseOutcome(0, errorMessage(e, "Failed to process download request"));
             } finally {
                 resultFuture.complete(new SubmitResult(outcome.createdTasks(), outcome.errorMessage()));
             }
@@ -162,6 +149,9 @@ public class RemoteDownloadService implements DownloadService {
                 }
             } catch (Exception e) {
                 log.error("Failed to parse URL: {}", url, e);
+                if (errorMessage == null) {
+                    errorMessage = errorMessage(e, "Failed to process video link");
+                }
             }
         }
 
@@ -246,11 +236,19 @@ public class RemoteDownloadService implements DownloadService {
             }
         } catch (Exception e) {
             log.error("Failed to parse user profile: {}", profileUrl, e);
+            errorMessage = errorMessage(e, "Failed to parse user profile");
         }
 
         return requestEpoch == queueEpoch.get()
                 ? new ParseOutcome(createdTasks, errorMessage)
                 : new ParseOutcome(0, null);
+    }
+
+    private String errorMessage(Throwable throwable, String fallback) {
+        if (throwable == null || throwable.getMessage() == null || throwable.getMessage().isBlank()) {
+            return fallback;
+        }
+        return throwable.getMessage();
     }
 
     private boolean createAndStartDownloadTask(VideoInfo videoInfo, DownloadRequest request,
